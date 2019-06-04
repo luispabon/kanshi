@@ -1,8 +1,9 @@
 sway-backgrounds/
 tmp/
 usr/
-mako/
+kanshi/
 debhelper-build-stamp
 files
 *.log
 *.substvars
+.debhelper
