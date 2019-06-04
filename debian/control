@@ -1,0 +1,19 @@
+Source: kanshi
+Section: x11
+Priority: optional
+Maintainer: Luis Pabon <luis.pabon@auronconsulting.co.uk>
+Build-Depends: debhelper (>= 11),
+                      libwayland-dev,
+                      libwayland-client0,
+                      wayland-protocols (>= 1.15),
+                      meson,
+                      pkg-config,
+                      scdoc
+Standards-Version: 4.3.0
+Homepage: https://github.com/emersion/kanshi
+
+Package: kanshi
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libwlroots0 (>=0.4)
+Recommends: sway
+Description: Dynamic wayland display configurator.
