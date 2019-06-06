@@ -17,7 +17,8 @@ static bool match_profile_output(struct kanshi_profile_output *output,
 	// TODO: improve vendor/model/serial matching
 	return strcmp(output->name, "*") == 0 ||
 		strcmp(output->name, head->name) == 0 ||
-		strstr(head->description, output->name) != NULL;
+		(strchr(output->name, ' ') != NULL &&
+		strstr(head->description, output->name) != NULL);
 }
 
 static bool match_profile(struct kanshi_state *state,
@@ -34,18 +35,20 @@ static bool match_profile(struct kanshi_state *state,
 	struct kanshi_profile_output *profile_output;
 	wl_list_for_each(profile_output, &profile->outputs, link) {
 		bool output_matched = false;
-		size_t i = 0;
+		ssize_t i = -1;
 		struct kanshi_head *head;
 		wl_list_for_each(head, &state->heads, link) {
+			i++;
+
 			if (matches[i] != NULL) {
 				continue; // already matched
 			}
+
 			if (match_profile_output(profile_output, head)) {
 				matches[i] = head;
 				output_matched = true;
 				break;
 			}
-			i++;
 		}
 
 		if (!output_matched) {
@@ -127,10 +130,14 @@ static void apply_profile(struct kanshi_state *state,
 		state->serial);
 	zwlr_output_configuration_v1_add_listener(config, &config_listener, pending);
 
-	size_t i = 0;
+	ssize_t i = -1;
 	struct kanshi_profile_output *profile_output;
 	wl_list_for_each(profile_output, &profile->outputs, link) {
+		i++;
 		struct kanshi_head *head = matches[i];
+
+		fprintf(stderr, "applying profile output '%s' on connected head '%s'\n",
+			profile_output->name, head->name);
 
 		bool enabled = head->enabled;
 		if (profile_output->fields & KANSHI_OUTPUT_ENABLED) {
@@ -172,8 +179,6 @@ static void apply_profile(struct kanshi_state *state,
 			zwlr_output_configuration_head_v1_set_transform(config_head,
 				profile_output->transform);
 		}
-
-		i++;
 	}
 
 	zwlr_output_configuration_v1_apply(config);
