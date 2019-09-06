@@ -1,0 +1,9 @@
+sway-backgrounds/
+tmp/
+usr/
+kanshi/
+debhelper-build-stamp
+files
+*.log
+*.substvars
+.debhelper
