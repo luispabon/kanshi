@@ -1,8 +1,12 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <wayland-client.h>
 
 #include "config.h"
@@ -71,11 +75,61 @@ static struct kanshi_profile *match(struct kanshi_state *state,
 }
 
 
+static void exec_command(char *cmd) {
+	pid_t pid, child;
+	if ((pid = fork()) == 0) {
+		setsid();
+		sigset_t set;
+		sigemptyset(&set);
+		sigprocmask(SIG_SETMASK, &set, NULL);
+		if ((child = fork()) == 0) {
+			execl("/bin/sh", "/bin/sh", "-c", cmd, (void *)NULL);
+			fprintf(stderr, "Executing command '%s' failed: %s", cmd, strerror(errno));
+			exit(-1);
+		}
+		if (child < 0) {
+			fprintf(stderr, "Impossible to fork a new process to execute"
+					" command '%s': %s", cmd, strerror(errno));
+			exit(0);
+		}
+
+		// Try to give some meaningful information on the command success
+		int wstatus;
+		if (waitpid(child, &wstatus, 0) != child) {
+			perror("waitpid");
+			exit(0);
+		}
+		if (WIFEXITED(wstatus)) {
+			fprintf(stderr, "Command '%s' returned with exit status %d.\n",
+					cmd, WEXITSTATUS(wstatus));
+		} else {
+			fprintf(stderr, "Command '%s' was killed, aborted or disappeared"
+					" in dire circumstances.\n", cmd);
+		}
+		exit(0); // Close child process
+	}
+
+	if (pid < 0) {
+		perror("Impossible to fork a new process");
+	}
+}
+
+static void execute_profile_commands(struct kanshi_profile *profile) {
+	struct kanshi_profile_command *command;
+	wl_list_for_each(command, &profile->commands, link) {
+		fprintf(stderr, "Running command '%s'\n", command->command);
+		exec_command(command->command);
+	}
+}
+
 static void config_handle_succeeded(void *data,
 		struct zwlr_output_configuration_v1 *config) {
 	struct kanshi_pending_profile *pending = data;
 	zwlr_output_configuration_v1_destroy(config);
-	fprintf(stderr, "configuration applied\n");
+	fprintf(stderr, "running commands for configuration '%s'\n", pending->profile->name);
+	execute_profile_commands(pending->profile);
+	fprintf(stderr, "configuration for profile '%s' applied\n",
+			pending->profile->name);
 	pending->state->current_profile = pending->profile;
 	free(pending);
 }
@@ -84,7 +138,8 @@ static void config_handle_failed(void *data,
 		struct zwlr_output_configuration_v1 *config) {
 	struct kanshi_pending_profile *pending = data;
 	zwlr_output_configuration_v1_destroy(config);
-	fprintf(stderr, "failed to apply configuration\n");
+	fprintf(stderr, "failed to apply configuration for profile '%s'\n",
+			pending->profile->name);
 	free(pending);
 }
 
@@ -93,7 +148,8 @@ static void config_handle_cancelled(void *data,
 	struct kanshi_pending_profile *pending = data;
 	zwlr_output_configuration_v1_destroy(config);
 	// Wait for new serial
-	fprintf(stderr, "configuration cancelled, retrying\n");
+	fprintf(stderr, "configuration for profile '%s' cancelled, retrying\n",
+			pending->profile->name);
 	free(pending);
 }
 
@@ -103,16 +159,33 @@ static const struct zwlr_output_configuration_v1_listener config_listener = {
 	.cancelled = config_handle_cancelled,
 };
 
+static bool match_refresh(const struct kanshi_mode *mode, int refresh) {
+	int v = refresh - mode->refresh;
+	return abs(v) < 50;
+}
+
 static struct kanshi_mode *match_mode(struct kanshi_head *head,
 		int width, int height, int refresh) {
 	struct kanshi_mode *mode;
+	struct kanshi_mode *last_match = NULL;
+
 	wl_list_for_each(mode, &head->modes, link) {
-		if (mode->width == width && mode->height == height &&
-				(refresh == 0 || mode->refresh == refresh)) {
-			return mode;
+		if (mode->width != width || mode->height != height) {
+			continue;
+		}
+
+		if (refresh) {
+			if (match_refresh(mode, refresh)) {
+				return mode;
+			}
+		} else {
+			if (!last_match || mode->refresh > last_match->refresh) {
+				last_match = mode;
+			}
 		}
 	}
-	return NULL;
+
+	return last_match;
 }
 
 static void apply_profile(struct kanshi_state *state,
@@ -347,7 +420,7 @@ static void output_manager_handle_done(void *data,
 	struct kanshi_profile_output *matches[HEADS_MAX];
 	struct kanshi_profile *profile = match(state, matches);
 	if (profile != NULL) {
-		fprintf(stderr, "applying profile\n");
+		fprintf(stderr, "applying profile '%s'\n", profile->name);
 		apply_profile(state, profile, matches);
 	} else {
 		fprintf(stderr, "no profile matched\n");

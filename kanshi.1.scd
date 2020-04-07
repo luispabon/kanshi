@@ -13,13 +13,13 @@ kanshi - dynamic output configuration
 kanshi is a Wayland daemon that automatically configures outputs.
 
 kanshi is configured with a list of output profiles. Each profile contains a set
-of output. A profile will be automatically activated if all specified outputs
+of outputs. A profile will be automatically activated if all specified outputs
 are currently connected. A profile contains configuration for each output.
 
 # CONFIGURATION
 
 kanshi reads its configuration from *$XDG_CONFIG_HOME/kanshi/config*. If unset,
-$XDG_CONFIG_HOME defaults to *~/.config*.
+*$XDG_CONFIG_HOME* defaults to *~/.config*.
 
 An error is raised if no configuration file is found.
 

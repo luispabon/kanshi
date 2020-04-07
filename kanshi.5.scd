@@ -6,18 +6,18 @@ kanshi - configuration file
 
 # DESCRIPTION
 
-A kanshi configuration file is a list of profiles. Each profile is delimited by
-brackets (*{* and *}*) and contains directives.
+A kanshi configuration file is a list of profiles. Each profile has an
+optional name and contains directives delimited by brackets (*{* and *}*).
 
 Example:
 
 ```
-{
+profile {
 	output LVDS-1 disable
 	output "Some Company ASDF 4242" mode 1600x900 position 0,0
 }
 
-{
+profile nomad {
 	output LVDS-1 enable scale 2
 }
 ```
@@ -34,6 +34,36 @@ Directives are followed by space-separated arguments. Arguments can be quoted
 
 	On *sway*(1), output names and descriptions can be obtained via
 	*swaymsg -t get_outputs*.
+
+*exec* <command>
+	An exec directive executes a command when the profile was successfully
+	applied. This can be used to update the compositor state to the profile
+	when not done automatically.
+
+	Commands are executed asynchronously and their order may not be preserved.
+	If you need to execute sequential commands, you should collect in one exec
+	statement or in a separate script.
+
+	On *sway*(1) for example, *exec* can be used to move workspaces to the
+	right output:
+
+```
+	multihead {
+		output eDP-1 enable
+		output DP-1 enable transform 270
+		exec swaymsg workspace 1, move workspace to eDP-1
+	}
+```
+
+	Note that some extra care must be taken with outputs identified by an
+	output description as the real name may change:
+
+```
+	complex {
+		output "Some Other Company GTBZ 2525" mode 1920x1200
+		exec swaymsg workspace 1, move workspace to output '"Some Other Company GTBZ 2525"'
+	}
+```
 
 # OUTPUT DIRECTIVES
 
@@ -64,7 +94,6 @@ Directives are followed by space-separated arguments. Arguments can be quoted
 	Sets the output transform. Can be one of "90", "180", "270" for a rotation;
 	or "flipped", "flipped-90", "flipped-180", "flipped-270" for a rotation and
 	a flip; or "normal" for no transform.
-
 
 # AUTHORS
 
