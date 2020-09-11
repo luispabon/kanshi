@@ -48,7 +48,7 @@ Directives are followed by space-separated arguments. Arguments can be quoted
 	right output:
 
 ```
-	multihead {
+	profile multihead {
 		output eDP-1 enable
 		output DP-1 enable transform 270
 		exec swaymsg workspace 1, move workspace to eDP-1
@@ -59,7 +59,7 @@ Directives are followed by space-separated arguments. Arguments can be quoted
 	output description as the real name may change:
 
 ```
-	complex {
+	profile complex {
 		output "Some Other Company GTBZ 2525" mode 1920x1200
 		exec swaymsg workspace 1, move workspace to output '"Some Other Company GTBZ 2525"'
 	}
@@ -77,15 +77,19 @@ Directives are followed by space-separated arguments. Arguments can be quoted
 
 	Examples:
 
+```
 		output HDMI-A-1 mode 1920x1080
 		output HDMI-A-1 mode 1920x1080@60Hz
+```
 
 *position* <x>,<y>
 	Places the output at the specified position in the global coordinates space.
 
 	Example:
 
+```
 		output HDMI-A-1 position 1600,0
+```
 
 *scale* <factor>
 	Scales the output by the specified scale factor.
